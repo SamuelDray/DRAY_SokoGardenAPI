@@ -1,6 +1,8 @@
 from flask import*
 import pymysql
+import os
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'static/images'
 @app.route("/api/signup", methods=["POST"])
 def signup ():
     username=request.form['username']
@@ -66,8 +68,45 @@ def login():
         user=cursor.fetchone()
         return jsonify({"message":"Login successful", "user": user})
 
+# products route
+@app.route("/api/add_product", methods=["POST"])
+def add_product():
+    product_name=request.form['product_name']
+    product_description=request.form['product_description']
+    product_category=request.form['product_category']
+    product_cost=request.form['product_cost']
+    product_image=request.files['product_image']
+    print(product_name, product_description, product_category, product_cost, product_image)
+    # Get image name
+    image_name=product_image.filename
+    
+    # Save the image to folder
+    file_path=os.path.join(app.config['UPLOAD_FOLDER'], image_name)
+    product_image.save(file_path)
+
+    connection=pymysql.connect(host='localhost', user='root', password='', database='dray_sokogarden')
+    cursor=connection.cursor(pymysql.cursors.DictCursor)
+
+    sql="insert into product_details (product_name, product_description, product_category, product_cost, product_image) values (%s, %s, %s, %s, %s)"
+    data=(product_name, product_description, product_category, product_cost, product_image.filename)
+
+    cursor.execute(sql, data)
+    connection.commit()
+
+    return jsonify({"message":"Product added successfully"})
 
 
+@app.route("/api/get_products")
+def get_products():
+    connection=pymysql.connect(host='localhost', user='root', password='', database='dray_sokogarden')
+    cursor=connection.cursor(pymysql.cursors.DictCursor)
+    sql="select * from product_details"
+    cursor.execute(sql)
+    if cursor .rowcount==0:
+        return jsonify({"message":"No products found"})
+    else:
+        products = cursor.fetchall()
+        return jsonify(products)
 
 
 
